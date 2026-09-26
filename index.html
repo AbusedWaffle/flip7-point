@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="da"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flip 7">
+<meta name="theme-color" content="#1b2a4a">
+<title>Flip 7 point</title>
+<link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;background:#10192e;color:#fff;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{padding:16px;text-align:center}
+h1{margin:0;font-size:28px;letter-spacing:1px}h1 span{color:#ffcf40}
+.sub{color:#9fb0d0;font-size:14px;margin-top:4px}
+main{padding:0 14px 110px;max-width:560px;margin:auto}
+.card{background:#1b2a4a;border-radius:16px;padding:14px;margin-bottom:12px}
+input,button{font:inherit}
+input[type=text],input[type=number]{width:100%;padding:12px;border-radius:10px;border:0;background:#0d1628;color:#fff;font-size:17px}
+button{border:0;border-radius:12px;padding:13px 16px;font-size:17px;font-weight:600;cursor:pointer}
+.primary{background:#ffcf40;color:#10192e;width:100%}
+.ghost{background:#2b3d63;color:#fff}
+.danger{background:#5a2330;color:#ffb3c0}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.row>input{flex:1}
+.player{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:#22345a;margin-bottom:8px}
+.player.lead{background:#3a3212;outline:2px solid #ffcf40}
+.rank{width:28px;height:28px;border-radius:50%;background:#10192e;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.pname{flex:1;font-size:18px;font-weight:600}
+.pname small{display:block;color:#9fb0d0;font-weight:400;font-size:13px}
+.total{font-size:26px;font-weight:800}
+.bar{height:6px;background:#10192e;border-radius:3px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:#ffcf40}
+.bottom{position:fixed;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#10192ef2;display:flex;gap:8px;max-width:560px;margin:auto}
+.bottom button{flex:1}
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:flex-end;justify-content:center;z-index:9}
+.modal.show{display:flex}
+.sheet{background:#1b2a4a;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
+.entry{background:#22345a;border-radius:14px;padding:12px;margin-bottom:10px}
+.entry h3{margin:0 0 8px;display:flex;justify-content:space-between;font-size:18px}
+.entry h3 b{color:#ffcf40}
+.toggles{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.tg{background:#10192e;color:#9fb0d0;padding:9px 12px;font-size:15px;border-radius:20px}
+.tg.on{background:#ffcf40;color:#10192e}
+.tg.bust.on{background:#e0485f;color:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:#10192e;color:#fff;padding:9px 0;width:calc((100% - 30px)/6);font-size:15px;border-radius:10px}
+.chip.on{background:#4f7cff}
+.lbl{font-size:13px;color:#9fb0d0;margin:6px 0 4px}
+.win{text-align:center;padding:18px;background:linear-gradient(135deg,#ffcf40,#ff8a3d);color:#10192e;border-radius:16px;margin-bottom:12px;font-size:20px;font-weight:800}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:7px 4px;text-align:center;border-bottom:1px solid #2b3d63}
+th{color:#9fb0d0;font-weight:500}
+.hint{color:#9fb0d0;font-size:13px;line-height:1.4}
+</style></head><body>
+<header><h1>FLIP <span>7</span></h1><div class="sub" id="sub"></div></header>
+<main id="app"></main>
+<div class="bottom" id="bottom"></div>
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<script>
+const KEY='flip7-state-v1';
+let S=JSON.parse(localStorage.getItem(KEY)||'null')||{players:[],target:200,rounds:[],started:false};
+const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const totals=()=>S.players.map((_,i)=>S.rounds.reduce((a,r)=>a+(r[i]||0),0));
+function winner(){const t=totals(),m=Math.max(...t);if(m<S.target)return null;const w=t.map((v,i)=>v===m?i:-1).filter(i=>i>=0);return w;}
+
+function render(){
+ if(!S.started) return renderSetup();
+ const t=totals(),order=S.players.map((p,i)=>i).sort((a,b)=>t[b]-t[a]),max=Math.max(...t),w=winner();
+ $('sub').textContent=`Runde ${S.rounds.length+1} · mål ${S.target} point`;
+ let h='';
+ if(w) h+=`<div class="win">🏆 ${w.map(i=>esc(S.players[i])).join(' og ')} vinder med ${max} point!</div>`;
+ h+='<div class="card">';
+ order.forEach((i,k)=>{const lead=t[i]===max&&max>0;
+  h+=`<div class="player ${lead?'lead':''}"><div class="rank">${k+1}</div><div class="pname">${esc(S.players[i])}<small>${t[i]>=S.target?'Nået målet':'Mangler '+(S.target-t[i])}</small><div class="bar"><i style="width:${Math.min(100,t[i]/S.target*100)}%"></i></div></div><div class="total">${t[i]}</div></div>`;});
+ h+='</div>';
+ if(S.rounds.length){h+='<div class="card"><table><tr><th>#</th>'+S.players.map(p=>`<th>${esc(p)}</th>`).join('')+'</tr>';
+  S.rounds.forEach((r,n)=>{h+=`<tr><td>${n+1}</td>`+r.map(v=>`<td>${v===0?'<span style="color:#e0485f">0</span>':v}</td>`).join('')+'</tr>'});
+  h+='</table></div>';}
+ h+=`<div class="row"><button class="ghost" style="flex:1" onclick="undo()" ${S.rounds.length?'':'disabled'}>↩ Fortryd runde</button><button class="danger" style="flex:1" onclick="newGame()">Nyt spil</button></div>`;
+ $('app').innerHTML=h;
+ $('bottom').innerHTML=w?`<button class="primary" onclick="rematch()">Spil igen med samme spillere</button>`:`<button class="primary" onclick="openRound()">+ Tilføj runde</button>`;
+}
+
+function renderSetup(){
+ $('sub').textContent='Pointtavle';
+ if(!S.players.length) S.players=['',''];
+ let h='<div class="card"><div class="lbl">Spillere</div>';
+ S.players.forEach((p,i)=>{h+=`<div class="row"><input type="text" placeholder="Spiller ${i+1}" value="${esc(p)}" oninput="S.players[${i}]=this.value;save()">${S.players.length>2?`<button class="ghost" onclick="S.players.splice(${i},1);save();render()">✕</button>`:''}</div>`});
+ h+=`<button class="ghost" style="width:100%" onclick="S.players.push('');save();render()">+ Tilføj spiller</button>`;
+ h+=`<div class="lbl" style="margin-top:14px">Mål (point)</div><input type="number" inputmode="numeric" value="${S.target}" oninput="S.target=parseInt(this.value)||200;save()"></div>`;
+ h+='<div class="card hint">Tip: Tryk på del-knappen i browseren og vælg "Føj til hjemmeskærm", så ligger pointtavlen som en app på telefonen. Spillet gemmes automatisk, også hvis du lukker den.</div>';
+ $('app').innerHTML=h;
+ $('bottom').innerHTML='<button class="primary" onclick="start()">Start spil</button>';
+}
+function start(){S.players=S.players.map((p,i)=>p.trim()||'Spiller '+(i+1));S.rounds=[];S.started=true;save();render();}
+function newGame(){if(confirm('Start et helt nyt spil? Det nuværende spil slettes.')){S.started=false;S.rounds=[];save();render();}}
+function rematch(){S.rounds=[];save();render();}
+function undo(){if(confirm('Fjern sidste runde?')){S.rounds.pop();save();render();}}
+
+let E=[];
+const PLUS=[2,4,6,8,10];
+function score(e){if(e.bust)return 0;if(e.manual)return parseInt(e.direct)||0;return (parseInt(e.nums)||0)*(e.x2?2:1)+e.plus.reduce((a,b)=>a+b,0)+(e.flip7?15:0);}
+function openRound(){E=S.players.map(()=>({bust:false,nums:'',x2:false,plus:[],flip7:false,manual:false,direct:''}));drawRound();$('modal').classList.add('show');}
+function closeRound(){$('modal').classList.remove('show');}
+function drawRound(){
+ let h=`<h2 style="margin:0 0 10px">Runde ${S.rounds.length+1}</h2>`;
+ E.forEach((e,i)=>{
+  h+=`<div class="entry"><h3>${esc(S.players[i])} <b id="sc${i}">${score(e)}</b></h3><div class="toggles">
+  <button class="tg bust ${e.bust?'on':''}" onclick="tog(${i},'bust')">💥 Bust</button>
+  ${e.bust?'':`<button class="tg ${e.manual?'on':''}" onclick="tog(${i},'manual')">✏️ Skriv point direkte</button>`}</div>`;
+  if(!e.bust){
+   if(e.manual) h+=`<input type="number" inputmode="numeric" placeholder="Point i alt" value="${e.direct}" oninput="E[${i}].direct=this.value;upd(${i})">`;
+   else{
+    h+=`<div class="lbl">Sum af talkort</div><input type="number" inputmode="numeric" placeholder="0" value="${e.nums}" oninput="E[${i}].nums=this.value;upd(${i})">
+    <div class="toggles"><button class="tg ${e.x2?'on':''}" onclick="tog(${i},'x2')">×2</button><button class="tg ${e.flip7?'on':''}" onclick="tog(${i},'flip7')">⭐ Flip 7 (+15)</button></div>
+    <div class="lbl">Plus-kort</div><div class="chips">${PLUS.map(p=>`<button class="chip ${e.plus.includes(p)?'on':''}" onclick="plus(${i},${p})">+${p}</button>`).join('')}</div>`;
+   }
+  }
+  h+='</div>';});
+ h+=`<div class="row" style="margin-top:6px"><button class="ghost" style="flex:1" onclick="closeRound()">Annuller</button><button class="primary" style="flex:2" onclick="saveRound()">Gem runde</button></div>
+ <p class="hint">Bust giver 0. Ellers bliver talkortene fordoblet ved ×2, så lægges plus-kortene til, og Flip 7 giver +15.</p>`;
+ $('sheet').innerHTML=h;
+}
+function upd(i){$('sc'+i).textContent=score(E[i]);}
+function tog(i,k){E[i][k]=!E[i][k];drawRound();}
+function plus(i,p){const a=E[i].plus,j=a.indexOf(p);j>=0?a.splice(j,1):a.push(p);drawRound();}
+function saveRound(){S.rounds.push(E.map(score));save();closeRound();render();window.scrollTo(0,0);}
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeRound();});
+render();
+</script></body></html>
