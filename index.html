@@ -4,9 +4,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Flip 7">
+<meta name="apple-mobile-web-app-title" content="Én til? Point">
 <meta name="theme-color" content="#1b2a4a">
-<title>Flip 7 point</title>
+<title>Én til? – pointtæller</title>
 <link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -53,14 +53,16 @@ table{width:100%;border-collapse:collapse;font-size:15px}
 th,td{padding:7px 4px;text-align:center;border-bottom:1px solid #2b3d63}
 th{color:#9fb0d0;font-weight:500}
 .hint{color:#9fb0d0;font-size:13px;line-height:1.4}
+.disc{color:#6b7a99;font-size:11px;text-align:center;line-height:1.45;margin:10px 8px 0}
 </style></head><body>
-<header><h1>FLIP <span>7</span></h1><div class="sub" id="sub"></div></header>
-<main id="app"></main>
+<header><h1>ÉN TIL? <span>POINT</span></h1><div class="sub" id="sub"></div></header>
+<main><div id="app"></div><footer class="disc">Uofficiel fan-lavet pointtæller. Ikke tilknyttet eller godkendt af The Op / USAOPOLY.</footer></main>
 <div class="bottom" id="bottom"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
-const KEY='flip7-state-v1';
-let S=JSON.parse(localStorage.getItem(KEY)||'null')||{players:[],target:200,rounds:[],started:false};
+const KEY='entil-point-v1';
+// gammel nøgle (før omdøbning) læses én gang, så et igangværende spil ikke går tabt
+let S=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('flip7-state-v1')||'null')||{players:[],target:200,rounds:[],started:false};
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -103,8 +105,8 @@ function undo(){if(confirm('Fjern sidste runde?')){S.rounds.pop();save();render(
 
 let E=[];
 const PLUS=[2,4,6,8,10];
-function score(e){if(e.bust)return 0;if(e.manual)return parseInt(e.direct)||0;return (parseInt(e.nums)||0)*(e.x2?2:1)+e.plus.reduce((a,b)=>a+b,0)+(e.flip7?15:0);}
-function openRound(){E=S.players.map(()=>({bust:false,nums:'',x2:false,plus:[],flip7:false,manual:false,direct:''}));drawRound();$('modal').classList.add('show');}
+function score(e){if(e.bust)return 0;if(e.manual)return parseInt(e.direct)||0;return (parseInt(e.nums)||0)*(e.x2?2:1)+e.plus.reduce((a,b)=>a+b,0)+(e.seven?15:0);}
+function openRound(){E=S.players.map(()=>({bust:false,nums:'',x2:false,plus:[],seven:false,manual:false,direct:''}));drawRound();$('modal').classList.add('show');}
 function closeRound(){$('modal').classList.remove('show');}
 function drawRound(){
  let h=`<h2 style="margin:0 0 10px">Runde ${S.rounds.length+1}</h2>`;
@@ -116,13 +118,13 @@ function drawRound(){
    if(e.manual) h+=`<input type="number" inputmode="numeric" placeholder="Point i alt" value="${e.direct}" oninput="E[${i}].direct=this.value;upd(${i})">`;
    else{
     h+=`<div class="lbl">Sum af talkort</div><input type="number" inputmode="numeric" placeholder="0" value="${e.nums}" oninput="E[${i}].nums=this.value;upd(${i})">
-    <div class="toggles"><button class="tg ${e.x2?'on':''}" onclick="tog(${i},'x2')">×2</button><button class="tg ${e.flip7?'on':''}" onclick="tog(${i},'flip7')">⭐ Flip 7 (+15)</button></div>
+    <div class="toggles"><button class="tg ${e.x2?'on':''}" onclick="tog(${i},'x2')">×2</button><button class="tg ${e.seven?'on':''}" onclick="tog(${i},'seven')">⭐ 7 forskellige (+15)</button></div>
     <div class="lbl">Plus-kort</div><div class="chips">${PLUS.map(p=>`<button class="chip ${e.plus.includes(p)?'on':''}" onclick="plus(${i},${p})">+${p}</button>`).join('')}</div>`;
    }
   }
   h+='</div>';});
  h+=`<div class="row" style="margin-top:6px"><button class="ghost" style="flex:1" onclick="closeRound()">Annuller</button><button class="primary" style="flex:2" onclick="saveRound()">Gem runde</button></div>
- <p class="hint">Bust giver 0. Ellers bliver talkortene fordoblet ved ×2, så lægges plus-kortene til, og Flip 7 giver +15.</p>`;
+ <p class="hint">Bust giver 0. Ellers bliver talkortene fordoblet ved ×2, så lægges plus-kortene til, og 7 forskellige tal giver +15.</p>`;
  $('sheet').innerHTML=h;
 }
 function upd(i){$('sc'+i).textContent=score(E[i]);}
